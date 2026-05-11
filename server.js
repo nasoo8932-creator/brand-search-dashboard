@@ -13,8 +13,8 @@ const fs    = require('fs');
 const path  = require('path');
 
 const PORT = process.env.PORT || 3000;
-// 로컬: 127.0.0.1, 클라우드 배포(Railway 등): 0.0.0.0
-const HOST = process.env.HOST || (process.env.RAILWAY_ENVIRONMENT ? '0.0.0.0' : '127.0.0.1');
+// 클라우드(PORT 환경변수 존재 시): 0.0.0.0 / 로컬: 127.0.0.1
+const HOST = process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1');
 const UA   = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
              '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
