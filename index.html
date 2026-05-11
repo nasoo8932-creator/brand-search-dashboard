@@ -411,6 +411,40 @@
       transition: all .25s; pointer-events: none;
     }
     .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── Firebase 동기화 모달 ── */
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 22px; width: 360px;
+      box-shadow: 0 16px 48px rgba(0,0,0,.5);
+    }
+    .modal-title { font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+    .modal-sub   { font-size: 11px; color: var(--text-3); margin-bottom: 14px; line-height: 1.6; }
+    .modal-input {
+      width: 100%; background: var(--bg-inp); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-2); padding: 8px 10px;
+      font-size: 11px; font-family: inherit; margin-bottom: 12px;
+    }
+    .modal-input:focus { outline: none; border-color: var(--blue-l); }
+    .sync-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: var(--text-3); transition: background .3s;
+    }
+    .sync-dot.ok  { background: var(--green-l); box-shadow: 0 0 6px var(--green-l); }
+    .sync-dot.err { background: var(--red-l); }
+    .sync-status {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--text-3);
+      padding: 3px 10px; border-radius: 20px;
+      border: 1px solid var(--border); cursor: pointer;
+      transition: border-color .15s;
+    }
+    .sync-status:hover { border-color: var(--text-3); }
   </style>
 </head>
 <body>
@@ -436,6 +470,10 @@
         <button class="col-btn" data-c="4" onclick="setCols(4)">4열</button>
         <button class="col-btn" data-c="5" onclick="setCols(5)">5열</button>
         <button class="col-btn" data-c="6" onclick="setCols(6)">6열</button>
+      </div>
+      <div class="sync-status" onclick="openSyncModal()" title="Firebase 동기화 설정">
+        <span class="sync-dot" id="syncDot"></span>
+        <span id="syncText">동기화 설정</span>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="reloadAll()">🔄 전체 새로고침</button>
       <button class="btn btn-ghost btn-sm" onclick="clearAll()">전체 닫기</button>
@@ -547,6 +585,27 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ── Firebase 동기화 모달 ── -->
+<div class="modal-bg" id="syncModal" style="display:none" onclick="if(event.target===this)closeSyncModal()">
+  <div class="modal-box">
+    <div class="modal-title">🔗 Firebase 동기화 설정</div>
+    <div class="modal-sub">
+      Firebase Realtime Database URL을 입력하면<br>
+      어느 컴퓨터에서나 그룹·키워드가 공유됩니다.<br><br>
+      <span style="color:var(--mo)">팀 컨디션 대시보드와 같은 Firebase URL 사용 가능</span>
+    </div>
+    <div style="font-size:10px;color:var(--text-3);margin-bottom:4px;">Firebase Realtime Database URL</div>
+    <input id="syncUrlInput" class="modal-input"
+      placeholder="https://xxx-default-rtdb.asia-southeast1.firebasedatabase.app">
+    <div style="font-size:10px;color:var(--text-3);margin-bottom:14px;" id="syncStatusMsg"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary btn-sm" style="flex:1" onclick="saveSyncUrl()">연결</button>
+      <button class="btn btn-danger btn-sm" onclick="clearSyncUrl()">연결 해제</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeSyncModal()">닫기</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ─────────────────────────────────────────────
@@ -835,41 +894,93 @@ function saveKws() {
 }
 
 // ─────────────────────────────────────────────
-// 저장 키워드 (서버 API 우선, file:// 시 localStorage 폴백)
+// Firebase 동기화
 // ─────────────────────────────────────────────
-const USE_API = location.protocol !== 'file:';
+let FIREBASE_URL = localStorage.getItem('bdash_firebase') || '';
+const FB_PATH = '/brand-dashboard.json';
 
+function fbUrl() { return FIREBASE_URL.replace(/\/$/, '') + FB_PATH; }
+
+function updateSyncUI() {
+  const dot  = document.getElementById('syncDot');
+  const text = document.getElementById('syncText');
+  if (!dot) return;
+  if (FIREBASE_URL) {
+    dot.className  = 'sync-dot ok';
+    text.textContent = '동기화 연결됨';
+  } else {
+    dot.className  = 'sync-dot';
+    text.textContent = '동기화 설정';
+  }
+}
+
+function openSyncModal() {
+  document.getElementById('syncUrlInput').value = FIREBASE_URL;
+  document.getElementById('syncStatusMsg').textContent = '';
+  document.getElementById('syncModal').style.display = 'flex';
+}
+function closeSyncModal() { document.getElementById('syncModal').style.display = 'none'; }
+
+async function saveSyncUrl() {
+  const url = document.getElementById('syncUrlInput').value.trim().replace(/\/$/, '');
+  const msg = document.getElementById('syncStatusMsg');
+  if (!url) { msg.textContent = 'URL을 입력해주세요'; msg.style.color = 'var(--red-l)'; return; }
+  msg.textContent = '연결 확인 중…'; msg.style.color = 'var(--text-3)';
+  try {
+    const r = await fetch(url + FB_PATH);
+    if (!r.ok) throw new Error('응답 오류');
+    FIREBASE_URL = url;
+    localStorage.setItem('bdash_firebase', url);
+    updateSyncUI();
+    msg.textContent = '✅ 연결됨! 데이터를 불러오는 중…'; msg.style.color = 'var(--green-l)';
+    await loadLS();
+    closeSyncModal();
+    toast('🔗 Firebase 동기화 연결됨');
+  } catch (e) {
+    msg.textContent = '❌ 연결 실패. URL을 확인해주세요.'; msg.style.color = 'var(--red-l)';
+  }
+}
+
+function clearSyncUrl() {
+  FIREBASE_URL = '';
+  localStorage.removeItem('bdash_firebase');
+  updateSyncUI();
+  closeSyncModal();
+  toast('동기화 연결 해제됨');
+}
+
+// ─────────────────────────────────────────────
+// 저장 키워드 (Firebase 우선 → localStorage 폴백)
+// ─────────────────────────────────────────────
 async function loadLS() {
-  if (USE_API) {
+  if (FIREBASE_URL) {
     try {
-      const r = await fetch('/api/data');
+      const r = await fetch(fbUrl());
       if (r.ok) {
         const d = await r.json();
-        saved  = Array.isArray(d.saved)  ? d.saved  : [];
-        groups = Array.isArray(d.groups) ? d.groups : [];
-      } else throw new Error('서버 응답 오류');
-    } catch (e) {
-      console.warn('API 로드 실패, localStorage 폴백:', e.message);
-      try { saved  = JSON.parse(localStorage.getItem('bdash_kw')  || '[]'); } catch { saved  = []; }
-      try { groups = JSON.parse(localStorage.getItem('bdash_grp') || '[]'); } catch { groups = []; }
-    }
-  } else {
-    try { saved  = JSON.parse(localStorage.getItem('bdash_kw')  || '[]'); } catch { saved  = []; }
-    try { groups = JSON.parse(localStorage.getItem('bdash_grp') || '[]'); } catch { groups = []; }
+        if (d) {
+          saved  = Array.isArray(d.saved)  ? d.saved  : [];
+          groups = Array.isArray(d.groups) ? d.groups : [];
+          renderSaved(); renderGrpTable();
+          return;
+        }
+      }
+    } catch (e) { console.warn('Firebase 로드 실패:', e); }
   }
+  try { saved  = JSON.parse(localStorage.getItem('bdash_kw')  || '[]'); } catch { saved  = []; }
+  try { groups = JSON.parse(localStorage.getItem('bdash_grp') || '[]'); } catch { groups = []; }
   renderSaved(); renderGrpTable();
 }
 
 function saveLS() {
-  if (USE_API) {
-    fetch('/api/data', {
-      method: 'POST',
+  localStorage.setItem('bdash_kw',  JSON.stringify(saved));
+  localStorage.setItem('bdash_grp', JSON.stringify(groups));
+  if (FIREBASE_URL) {
+    fetch(fbUrl(), {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ saved, groups })
-    }).catch(e => console.warn('API 저장 실패:', e.message));
-  } else {
-    localStorage.setItem('bdash_kw',  JSON.stringify(saved));
-    localStorage.setItem('bdash_grp', JSON.stringify(groups));
+    }).catch(e => console.warn('Firebase 저장 실패:', e));
   }
 }
 function renderSaved() {
@@ -1066,6 +1177,7 @@ function escJ(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 // ─────────────────────────────────────────────
 checkServer();
 setInterval(checkServer, 10000);
+updateSyncUI();
 loadLS().catch(() => {});
 </script>
 </body>
