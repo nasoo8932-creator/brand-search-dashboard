@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>네이버 브랜드 검색 대시보드</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-main: #0d1117;
+      --bg-side: #161b22;
+      --bg-card: #21262d;
+      --bg-inp:  #0d1117;
+      --border:  #30363d;
+      --text-1:  #e6edf3;
+      --text-2:  #c9d1d9;
+      --text-3:  #8b949e;
+      --blue:    #1f6feb;
+      --blue-l:  #388bfd;
+      --green:   #238636;
+      --green-l: #3fb950;
+      --red-l:   #f85149;
+      --mo:      #79c0ff;
+      --pc:      #56d364;
+      --sidebar: 290px;
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', '맑은 고딕', sans-serif;
+      background: var(--bg-main);
+      color: var(--text-2);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── 헤더 ── */
+    .header {
+      flex-shrink: 0;
+      background: var(--bg-side);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px; height: 46px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .hd-left { display: flex; align-items: center; gap: 10px; }
+    .hd-logo  { font-size: 18px; }
+    .hd-title { font-size: 14px; font-weight: 700; color: var(--text-1); }
+    .hd-badge {
+      background: var(--blue); color: #fff;
+      font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .server-status {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--text-3);
+      padding: 3px 10px; border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text-3); flex-shrink: 0;
+      transition: background .3s;
+    }
+    .status-dot.ok  { background: var(--green-l); box-shadow: 0 0 6px var(--green-l); }
+    .status-dot.err { background: var(--red-l); }
+
+    .hd-right { display: flex; align-items: center; gap: 8px; }
+
+    .col-toggle {
+      display: flex; gap: 2px;
+      background: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 2px;
+    }
+    .col-btn {
+      background: none; border: none; color: var(--text-3);
+      font-size: 11px; font-weight: 700;
+      padding: 3px 9px; border-radius: 4px;
+      cursor: pointer; transition: all .15s;
+    }
+    .col-btn.active { background: var(--blue); color: #fff; }
+
+    /* ── 레이아웃 ── */
+    .body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── 사이드바 ── */
+    .sidebar {
+      width: var(--sidebar); min-width: var(--sidebar);
+      background: var(--bg-side);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow-y: auto; overflow-x: hidden;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .sec { padding: 13px 14px; border-bottom: 1px solid var(--border); }
+    .sec-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .sec-title {
+      font-size: 10px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: .1em;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .sec-title::before {
+      content: ''; display: block;
+      width: 3px; height: 11px;
+      background: var(--blue-l); border-radius: 2px;
+    }
+
+    /* 그룹 테이블 */
+    .grp-table { width: 100%; border-collapse: collapse; }
+    .grp-table thead th {
+      font-size: 10px; font-weight: 700;
+      padding: 5px 4px; border-bottom: 2px solid var(--border);
+    }
+    .grp-table thead th:first-child { text-align: left; color: var(--text-3); }
+    .grp-table thead th.col-mo { text-align: center; color: var(--mo); }
+    .grp-table thead th.col-pc { text-align: center; color: var(--pc); }
+    .grp-table thead th.col-act { width: 46px; }
+
+    .grp-table tbody tr:hover td { background: rgba(255,255,255,.025); }
+    .grp-table tbody td {
+      padding: 5px 4px;
+      border-bottom: 1px solid rgba(48,54,61,.6);
+      vertical-align: middle;
+    }
+    .grp-table tbody td:first-child { font-size: 11px; color: var(--text-2); }
+    .grp-table tbody td:not(:first-child) { text-align: center; }
+
+    input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: var(--blue-l); }
+
+    .grp-name-wrap { position: relative; cursor: default; display: inline-block; }
+    .grp-kw-tip {
+      display: none; position: absolute; left: 0; top: calc(100% + 4px);
+      background: #2d333b; border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 10px;
+      font-size: 10px; color: var(--text-2);
+      white-space: normal; max-width: 210px; word-break: break-all;
+      z-index: 300; box-shadow: 0 4px 16px rgba(0,0,0,.5); line-height: 1.6;
+    }
+    .grp-name-wrap:hover .grp-kw-tip { display: block; }
+    .grp-count { color: var(--text-3); font-size: 10px; }
+
+    /* 편집 인라인 */
+    .edit-row td { padding: 0 !important; border-bottom: none !important; }
+    .edit-panel {
+      background: rgba(56,139,253,.06); border: 1px solid rgba(56,139,253,.25);
+      border-radius: 6px; padding: 10px; margin: 4px 0 6px;
+    }
+    .edit-panel-label { font-size: 10px; color: var(--text-3); margin-bottom: 4px; }
+    .edit-name-row { display: flex; gap: 6px; margin-bottom: 8px; }
+    .edit-kw-chips { display: flex; flex-wrap: wrap; gap: 4px; min-height: 24px; margin-bottom: 8px; }
+    .edit-chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: rgba(255,255,255,.07); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 6px 2px 8px;
+      font-size: 10px; color: var(--text-2);
+    }
+    .edit-chip-x {
+      background: none; border: none; color: var(--text-3);
+      cursor: pointer; font-size: 13px; line-height: 1;
+      padding: 0 1px; transition: color .15s;
+    }
+    .edit-chip-x:hover { color: var(--red-l); }
+    .add-kw-row { display: flex; gap: 5px; margin-bottom: 8px; }
+
+    .grp-form {
+      background: rgba(255,255,255,.03); border: 1px dashed var(--border);
+      border-radius: 6px; padding: 10px; margin-bottom: 10px;
+    }
+    .form-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+    .form-row label { font-size: 10px; color: var(--text-3); min-width: 36px; }
+
+    .mini-input, .mini-textarea {
+      flex: 1; background: var(--bg-inp); border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text-2);
+      padding: 5px 8px; font-size: 11px; font-family: inherit;
+    }
+    .mini-input:focus, .mini-textarea:focus { outline: none; border-color: var(--blue-l); }
+    .mini-input::placeholder, .mini-textarea::placeholder { color: var(--text-3); }
+    .mini-textarea { resize: vertical; min-height: 48px; }
+
+    /* 버튼 */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      border: none; border-radius: 6px; cursor: pointer;
+      font-family: inherit; font-weight: 600; transition: all .15s;
+      text-decoration: none; white-space: nowrap;
+    }
+    .btn-md   { font-size: 12px; padding: 7px 14px; }
+    .btn-sm   { font-size: 11px; padding: 5px 10px; }
+    .btn-xs   { font-size: 10px; padding: 3px 8px; }
+    .btn-full { width: 100%; }
+
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-primary:hover { background: var(--blue-l); }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-success:hover { background: var(--green-l); }
+    .btn-ghost { background: transparent; color: var(--text-3); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,.05); color: var(--text-2); border-color: var(--text-3); }
+    .btn-danger { background: transparent; color: var(--red-l); border: 1px solid var(--border); }
+    .btn-danger:hover { background: rgba(248,81,73,.1); border-color: var(--red-l); }
+    .btn-icon { background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 13px; padding: 2px 3px; border-radius: 4px; transition: all .15s; }
+    .btn-icon.edit:hover { color: var(--blue-l); background: rgba(56,139,253,.1); }
+    .btn-icon.del:hover  { color: var(--red-l);  background: rgba(248,81,73,.1); }
+
+    .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+    .btn-row .btn { flex: 1; }
+
+    .kw-textarea {
+      width: 100%; background: var(--bg-inp); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-2);
+      padding: 8px 10px; font-size: 12px; font-family: inherit;
+      line-height: 1.5; resize: vertical; min-height: 130px;
+    }
+    .kw-textarea:focus { outline: none; border-color: var(--blue-l); box-shadow: 0 0 0 3px rgba(56,139,253,.12); }
+    .kw-textarea::placeholder { color: var(--text-3); }
+    .hint { font-size: 10px; color: var(--text-3); margin-top: 4px; }
+
+    .saved-list {
+      display: flex; flex-wrap: wrap; gap: 5px;
+      min-height: 28px; max-height: 120px; overflow-y: auto; margin-bottom: 8px;
+    }
+    .saved-list::-webkit-scrollbar { width: 3px; }
+    .kw-chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: rgba(56,139,253,.1); border: 1px solid rgba(56,139,253,.25);
+      border-radius: 20px; padding: 3px 6px 3px 10px;
+      font-size: 11px; color: var(--mo); cursor: pointer; transition: all .15s;
+    }
+    .kw-chip:hover { background: rgba(56,139,253,.2); }
+    .chip-x {
+      background: none; border: none; color: var(--text-3);
+      cursor: pointer; font-size: 14px; line-height: 1;
+      padding: 0 2px; border-radius: 50%; transition: all .15s;
+    }
+    .chip-x:hover { color: var(--red-l); }
+    .empty-saved { font-size: 11px; color: var(--text-3); font-style: italic; }
+
+    /* ── 콘텐츠 ── */
+    .content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .server-banner {
+      display: none;
+      align-items: center; justify-content: center; gap: 12px;
+      padding: 10px 16px;
+      background: rgba(210,153,34,.12); border-bottom: 1px solid rgba(210,153,34,.3);
+      font-size: 12px; color: #e3b341;
+    }
+    .server-banner.show { display: flex; }
+    .server-banner a { color: #79c0ff; font-weight: 700; }
+
+    .content-bar {
+      flex-shrink: 0; display: none;
+      align-items: center; justify-content: space-between;
+      padding: 5px 14px;
+      background: var(--bg-side); border-bottom: 1px solid var(--border);
+      font-size: 11px; color: var(--text-3);
+    }
+    .content-bar.on { display: flex; }
+    .bar-count { color: var(--blue-l); font-weight: 700; }
+
+    .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px; }
+    .content-scroll::-webkit-scrollbar { width: 6px; }
+    .content-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .empty-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 60vh; gap: 10px; color: var(--text-3);
+    }
+    .empty-icon  { font-size: 48px; opacity: .2; }
+    .empty-title { font-size: 15px; font-weight: 600; }
+    .empty-sub   { font-size: 12px; opacity: .8; }
+
+    /* 결과 그리드 */
+    .results-grid { display: grid; gap: 6px; align-items: start; }
+    .results-grid.c1 { grid-template-columns: 1fr; }
+    .results-grid.c2 { grid-template-columns: repeat(2,1fr); }
+    .results-grid.c3 { grid-template-columns: repeat(3,1fr); }
+    .results-grid.c4 { grid-template-columns: repeat(4,1fr); }
+    .results-grid.c5 { grid-template-columns: repeat(5,1fr); }
+    .results-grid.c6 { grid-template-columns: repeat(6,1fr); }
+
+    /* ── 키워드 카드 ── */
+    .kw-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden;
+      transition: border-color .2s;
+    }
+    .kw-card:hover { border-color: rgba(56,139,253,.35); }
+
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 8px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid var(--border);
+    }
+    .card-kw {
+      font-size: 12px; font-weight: 700; color: var(--text-1);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .card-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; margin-left: 6px; }
+    .card-close {
+      background: none; border: none; color: var(--text-3);
+      cursor: pointer; font-size: 14px; padding: 1px 4px;
+      border-radius: 4px; transition: all .15s;
+    }
+    .card-close:hover { color: var(--red-l); background: rgba(248,81,73,.1); }
+
+    /* 프레임 컨테이너 */
+    .frames { display: grid; }
+    .frames.both { grid-template-columns: 50fr 50fr; }
+    .frames.one  { grid-template-columns: 1fr; }
+
+    .frame-col {
+      display: flex; flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .frame-col:last-child { border-right: none; }
+
+    .frame-lbl {
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      padding: 3px 22px 3px 6px; font-size: 9px; font-weight: 700;
+      letter-spacing: .05em; flex-shrink: 0;
+    }
+    .frame-lbl.mo {
+      background: rgba(121,192,255,.1); color: var(--mo);
+      border-bottom: 1px solid rgba(121,192,255,.15);
+    }
+    .frame-lbl.pc {
+      background: rgba(86,211,100,.1); color: var(--pc);
+      border-bottom: 1px solid rgba(86,211,100,.15);
+    }
+    .frame-lbl-x {
+      position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      font-size: 10px; line-height: 1; padding: 1px 3px;
+      border-radius: 3px; opacity: .5; transition: opacity .15s, background .15s;
+      color: inherit;
+    }
+    .frame-lbl-x:hover { opacity: 1; background: rgba(255,255,255,.15); }
+
+    .frame-wrap {
+      position: relative;
+      overflow: hidden;
+      background: #fff;
+      flex: none;        /* JS가 height를 제어하므로 flex 성장 금지 */
+      height: 180px;     /* 기본값 – JS scaleFrames가 열 수에 맞게 덮어씀 */
+    }
+    .frame-wrap iframe {
+      display: block;
+      border: none;
+      transform-origin: top left;
+      background: #fff;
+    }
+    .frame-overlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; background: #0d1117;
+      font-size: 11px; color: var(--text-3);
+      transition: opacity .4s;
+      z-index: 10;
+    }
+    .frame-overlay.hidden { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 22px; height: 22px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue-l);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* 카드 푸터 */
+    .frame-foot {
+      display: flex; gap: 3px; padding: 2px 5px;
+      border-top: 1px solid var(--border);
+      background: rgba(0,0,0,.2); flex-shrink: 0;
+    }
+    .frame-foot a, .frame-foot button {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center; gap: 2px;
+      padding: 2px 4px; font-size: 9px; font-weight: 600;
+      color: var(--text-3); text-decoration: none;
+      background: none; border: 1px solid var(--border);
+      border-radius: 3px; cursor: pointer; font-family: inherit;
+      transition: all .15s;
+    }
+    .frame-foot a:hover     { color: var(--text-2); border-color: var(--text-3); }
+    .frame-foot button:hover { color: #e3b341; border-color: #e3b341; }
+
+    /* 토스트 */
+    .toast {
+      position: fixed; bottom: 20px; right: 20px;
+      background: #2d333b; border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 16px;
+      font-size: 12px; color: var(--text-2);
+      box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 9999;
+      transform: translateY(20px); opacity: 0;
+      transition: all .25s; pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="header">
+    <div class="hd-left">
+      <span class="hd-logo">🔍</span>
+      <span class="hd-title">네이버 브랜드 검색 대시보드</span>
+      <span class="hd-badge">v2</span>
+      <div class="server-status" id="statusBadge">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">서버 확인 중…</span>
+      </div>
+    </div>
+    <div class="hd-right">
+      <span style="font-size:11px;color:var(--text-3)">열 수:</span>
+      <div class="col-toggle">
+        <button class="col-btn" data-c="1" onclick="setCols(1)">1열</button>
+        <button class="col-btn active" data-c="2" onclick="setCols(2)">2열</button>
+        <button class="col-btn" data-c="3" onclick="setCols(3)">3열</button>
+        <button class="col-btn" data-c="4" onclick="setCols(4)">4열</button>
+        <button class="col-btn" data-c="5" onclick="setCols(5)">5열</button>
+        <button class="col-btn" data-c="6" onclick="setCols(6)">6열</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="reloadAll()">🔄 전체 새로고침</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearAll()">전체 닫기</button>
+    </div>
+  </header>
+
+  <div class="server-banner" id="serverBanner">
+    한 화면 미리보기는 로컬 서버가 필요합니다. <strong>시작.bat</strong> 실행 후
+    <a href="http://localhost:3000" target="_self">http://localhost:3000</a> 에서 여세요.
+    (<a href="https://nodejs.org" target="_blank">Node.js</a>)
+  </div>
+
+  <!-- ═══ BODY ═══ -->
+  <div class="body">
+
+    <!-- ─── 사이드바 ─── -->
+    <aside class="sidebar">
+
+      <!-- ① 그룹 키워드 -->
+      <div class="sec">
+        <div class="sec-hd">
+          <span class="sec-title">그룹 키워드</span>
+          <button class="btn btn-xs btn-ghost" id="addGrpBtn" onclick="toggleAddForm()">+ 그룹 추가</button>
+        </div>
+
+        <div class="grp-form" id="addGrpForm" style="display:none">
+          <div class="form-row">
+            <label>그룹명</label>
+            <input id="newGrpName" class="mini-input" placeholder="예) 경쟁사 세럼">
+          </div>
+          <div class="form-row" style="align-items:flex-start">
+            <label style="padding-top:4px">키워드</label>
+            <textarea id="newGrpKws" class="mini-textarea"
+              placeholder="쉼표(,)로 구분&#10;예) 세럼A, 세럼B, 미스트C"></textarea>
+          </div>
+          <div class="btn-row" style="margin-top:0">
+            <button class="btn btn-success btn-sm" onclick="saveNewGrp()">저장</button>
+            <button class="btn btn-ghost btn-sm"   onclick="toggleAddForm()">취소</button>
+          </div>
+        </div>
+
+        <table class="grp-table" id="grpTable" style="display:none">
+          <thead>
+            <tr>
+              <th>그룹</th>
+              <th class="col-mo">MO</th>
+              <th class="col-pc">PC</th>
+              <th class="col-act"></th>
+            </tr>
+          </thead>
+          <tbody id="grpTbody"></tbody>
+        </table>
+
+        <div id="grpEmpty" style="font-size:11px;color:var(--text-3);font-style:italic;margin-top:4px;">
+          아직 그룹이 없습니다
+        </div>
+
+        <button class="btn btn-primary btn-full btn-sm" style="margin-top:10px"
+                onclick="searchGrps()">▶ 선택 그룹 검색</button>
+      </div>
+
+      <!-- ② 검색어 직접 입력 -->
+      <div class="sec">
+        <div class="sec-hd"><span class="sec-title">검색어 직접 입력</span></div>
+        <textarea id="kwInput" class="kw-textarea"
+          placeholder="키워드 입력 (쉼표로 여러 개 구분)&#10;예) 더글로우, 피부과 세럼, 미스트"
+          onkeydown="if(event.ctrlKey&&event.key==='Enter')searchInput()"></textarea>
+        <div class="hint">쉼표(,) 구분 · Ctrl+Enter 로 검색</div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-md" onclick="searchInput()">검색 추가</button>
+          <button class="btn btn-success btn-md" onclick="saveKws()">목록 저장</button>
+        </div>
+      </div>
+
+      <!-- ③ 저장된 키워드 -->
+      <div class="sec">
+        <div class="sec-hd"><span class="sec-title">저장된 키워드</span></div>
+        <div class="saved-list" id="savedList">
+          <span class="empty-saved">저장된 키워드가 없습니다</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="searchAllSaved()">전체 검색</button>
+          <button class="btn btn-danger btn-sm" onclick="clearSaved()">초기화</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ─── 콘텐츠 ─── -->
+    <div class="content-area">
+      <div class="content-bar" id="cBar">
+        <span>표시 중: <span class="bar-count" id="cCount">0</span>개 키워드</span>
+        <span style="font-size:10px;color:var(--text-3);">
+          MO·PC 미리보기 (로컬 프록시 경유, 한 화면)
+        </span>
+      </div>
+
+      <div class="content-scroll">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">🔎</div>
+          <div class="empty-title">검색 결과가 여기에 표시됩니다</div>
+          <div class="empty-sub">좌측에서 그룹을 선택하거나 직접 키워드를 입력하세요</div>
+        </div>
+        <div class="results-grid c2" id="grid" style="display:none"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────
+// 상수
+// ─────────────────────────────────────────────
+const MO_URL = 'https://m.search.naver.com/search.naver?sm=mtp_hty.top&where=m&query=';
+const PC_URL = 'https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query=';
+
+// ─────────────────────────────────────────────
+// 상태
+// ─────────────────────────────────────────────
+let active = [];
+let groups = [];
+let saved  = [];
+let cols   = 2;
+
+let editingIdx  = -1;
+let editTmpName = '';
+let editTmpKws  = [];
+
+const PROXY  = '/proxy?url=';
+const MO_W   = 800;   // 가상 뷰포트 폭 – 클수록 축소 배율 증가 (더 멀리서 보는 효과)
+const PC_W   = 1333;  // 가상 뷰포트 폭 – 클수록 축소 배율 증가
+// 열 수별 카드 높이 (px) — 작을수록 한 화면에 더 많이 표시
+const FRAME_H_MAP = { 1: 240, 2: 180, 3: 150, 4: 120, 5: 102, 6: 87 };
+let FRAME_H = 180;
+
+async function checkServer() {
+  const dot    = document.getElementById('statusDot');
+  const txt    = document.getElementById('statusText');
+  const banner = document.getElementById('serverBanner');
+  if (!dot || !txt || !banner) return false;
+
+  if (location.protocol === 'file:') {
+    dot.className = 'status-dot err';
+    txt.textContent = '서버 미실행';
+    banner.classList.add('show');
+    return false;
+  }
+
+  try {
+    const r = await fetch(location.origin + '/', { signal: AbortSignal.timeout(2500) });
+    if (r.ok) {
+      dot.className = 'status-dot ok';
+      txt.textContent = '서버 실행 중';
+      banner.classList.remove('show');
+      return true;
+    }
+  } catch (_) {}
+
+  dot.className = 'status-dot err';
+  txt.textContent = '서버 미실행';
+  banner.classList.add('show');
+  return false;
+}
+
+function proxyUrl(navUrl) {
+  if (location.protocol === 'file:') return navUrl;
+  return PROXY + encodeURIComponent(navUrl);
+}
+
+function scaleFrames() {
+  document.querySelectorAll('.frame-wrap[data-type]').forEach(wrap => {
+    const type = wrap.dataset.type;
+    const base = type === 'mo' ? MO_W : PC_W;
+    const w    = wrap.offsetWidth;
+    if (!w) return;
+    const scale = w / base;
+    const ifrH  = Math.round(FRAME_H / scale);
+    wrap.style.height = FRAME_H + 'px';
+    const iframe = wrap.querySelector('iframe');
+    if (iframe) {
+      iframe.style.width           = base + 'px';
+      iframe.style.height          = ifrH + 'px';
+      iframe.style.transform       = 'scale(' + scale + ')';
+      iframe.style.transformOrigin = 'top left';
+    }
+  });
+}
+
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(scaleFrames, 150);
+});
+
+function reloadAll() {
+  const wraps = document.querySelectorAll('.frame-wrap[data-lazy-src]');
+  if (!wraps.length) { toast('새로고침할 미리보기가 없습니다'); return; }
+  let count = 0;
+  wraps.forEach(wrap => {
+    const fr  = wrap.querySelector('iframe');
+    const ov  = wrap.querySelector('.frame-overlay');
+    if (!fr) return;
+    const src = wrap.dataset.lazySrc;
+    if (ov) ov.classList.remove('hidden');
+    fr.src = src + (src.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    count++;
+  });
+  toast('🔄 ' + count + '개 미리보기 새로고침');
+}
+
+// ─────────────────────────────────────────────
+// 지연 로딩 (화면에 들어올 때 iframe 로드)
+// ─────────────────────────────────────────────
+let _lazyObs;
+function initLazyLoad() {
+  if (_lazyObs) _lazyObs.disconnect();
+  _lazyObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const wrap = entry.target;
+      const fr   = wrap.querySelector('iframe');
+      if (!fr) return;
+      // about:blank / 빈 문자열이면 아직 로드 안 된 것
+      const already = fr.src && fr.src !== 'about:blank' && !fr.src.startsWith('data:');
+      if (already) { _lazyObs.unobserve(wrap); return; }
+      const lazySrc = fr.dataset.src;
+      if (!lazySrc) return;
+      fr.src = lazySrc;
+      _lazyObs.unobserve(wrap);
+    });
+  }, { rootMargin: '300px' });  // 뷰포트 아래 300px 전에 미리 로드
+
+  document.querySelectorAll('.frame-wrap[data-lazy-src]').forEach(wrap => {
+    _lazyObs.observe(wrap);
+  });
+}
+
+
+
+// ─────────────────────────────────────────────
+// 그룹 추가
+// ─────────────────────────────────────────────
+function toggleAddForm() {
+  const f    = document.getElementById('addGrpForm');
+  const open = f.style.display === 'none';
+  f.style.display = open ? 'block' : 'none';
+  document.getElementById('addGrpBtn').textContent = open ? '✕ 닫기' : '+ 그룹 추가';
+  if (open) document.getElementById('newGrpName').focus();
+}
+
+function saveNewGrp() {
+  const name = document.getElementById('newGrpName').value.trim();
+  const raw  = document.getElementById('newGrpKws').value.trim();
+  if (!name) { toast('그룹명을 입력해주세요'); return; }
+  if (!raw)  { toast('키워드를 입력해주세요'); return; }
+  const kws = raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (!kws.length) { toast('유효한 키워드가 없습니다'); return; }
+  if (groups.find(g => g.name === name)) { toast(`"${name}" 그룹이 이미 있습니다`); return; }
+  groups.push({ name, keywords: kws });
+  saveLS(); renderGrpTable();
+  document.getElementById('newGrpName').value = '';
+  document.getElementById('newGrpKws').value  = '';
+  toggleAddForm();
+  toast(`그룹 "${name}" 저장됨 (${kws.length}개)`);
+}
+
+// ─────────────────────────────────────────────
+// 그룹 편집
+// ─────────────────────────────────────────────
+function openEditGrp(idx) {
+  editingIdx  = idx;
+  editTmpName = groups[idx].name;
+  editTmpKws  = [...groups[idx].keywords];
+  renderGrpTable();
+}
+function cancelEditGrp() { editingIdx = -1; editTmpName = ''; editTmpKws = []; renderGrpTable(); }
+function saveEditGrp() {
+  const nameEl = document.getElementById('editGrpNameInp');
+  if (!nameEl) return;
+  const newName = nameEl.value.trim();
+  if (!newName) { toast('그룹명을 입력해주세요'); return; }
+  if (!editTmpKws.length) { toast('키워드가 최소 1개 필요합니다'); return; }
+  if (groups.find((g, i) => g.name === newName && i !== editingIdx)) { toast(`"${newName}" 그룹명이 이미 있습니다`); return; }
+  groups[editingIdx] = { name: newName, keywords: [...editTmpKws] };
+  editingIdx = -1; editTmpName = ''; editTmpKws = [];
+  saveLS(); renderGrpTable(); toast('그룹 수정됨');
+}
+function delKwFromEdit(i) { editTmpKws.splice(i, 1); renderEditChips(); }
+function addKwToEdit() {
+  const inp  = document.getElementById('editAddKwInp');
+  if (!inp) return;
+  const toAdd = inp.value.trim().split(',').map(s => s.trim()).filter(s => s && !editTmpKws.includes(s));
+  editTmpKws.push(...toAdd); inp.value = '';
+  renderEditChips(); if (toAdd.length) toast(`${toAdd.length}개 추가됨`);
+}
+function renderEditChips() {
+  const wrap = document.getElementById('editChipsWrap');
+  if (!wrap) return;
+  wrap.innerHTML = editTmpKws.map((kw, i) => `
+    <span class="edit-chip">${esc(kw)}<button class="edit-chip-x" onclick="delKwFromEdit(${i})">×</button></span>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// 그룹 삭제 (비밀번호 1234)
+// ─────────────────────────────────────────────
+function deleteGrp(idx) {
+  const name = groups[idx].name;
+  const pw   = prompt(`그룹 "${name}" 삭제\n비밀번호를 입력하세요:`);
+  if (pw === null) return;
+  if (pw !== '1234') { toast('❌ 비밀번호가 틀렸습니다'); return; }
+  if (editingIdx === idx) editingIdx = -1;
+  else if (editingIdx > idx) editingIdx--;
+  groups.splice(idx, 1);
+  saveLS(); renderGrpTable(); toast(`그룹 "${name}" 삭제됨`);
+}
+
+// ─────────────────────────────────────────────
+// 그룹 테이블 렌더링
+// ─────────────────────────────────────────────
+function renderGrpTable() {
+  const tbody = document.getElementById('grpTbody');
+  const table = document.getElementById('grpTable');
+  const empty = document.getElementById('grpEmpty');
+  if (!groups.length) { table.style.display = 'none'; empty.style.display = 'block'; return; }
+  empty.style.display = 'none'; table.style.display = '';
+  tbody.innerHTML = groups.map((g, i) => `
+    <tr>
+      <td><span class="grp-name-wrap">${esc(g.name)} <span class="grp-count">(${g.keywords.length}개)</span>
+        <div class="grp-kw-tip">${esc(g.keywords.join(', '))}</div></span></td>
+      <td><input type="checkbox" class="gmo" data-i="${i}" checked></td>
+      <td><input type="checkbox" class="gpc" data-i="${i}" checked></td>
+      <td style="white-space:nowrap">
+        <button class="btn-icon edit" onclick="openEditGrp(${i})">✎</button>
+        <button class="btn-icon del"  onclick="deleteGrp(${i})">×</button>
+      </td>
+    </tr>
+    ${editingIdx === i ? buildEditRow() : ''}`).join('');
+  if (editingIdx >= 0) renderEditChips();
+}
+
+function buildEditRow() { return `
+  <tr class="edit-row"><td colspan="4"><div class="edit-panel">
+    <div class="edit-panel-label">그룹명 수정</div>
+    <div class="edit-name-row"><input id="editGrpNameInp" class="mini-input" value="${escA(editTmpName)}"></div>
+    <div class="edit-panel-label">키워드 목록 <span style="color:var(--text-3)">(× 삭제)</span></div>
+    <div class="edit-kw-chips" id="editChipsWrap"></div>
+    <div class="edit-panel-label">키워드 추가</div>
+    <div class="add-kw-row">
+      <input id="editAddKwInp" class="mini-input" placeholder="키워드 입력 (쉼표 구분)"
+        onkeydown="if(event.key==='Enter')addKwToEdit()">
+      <button class="btn btn-primary btn-xs" onclick="addKwToEdit()">+ 추가</button>
+    </div>
+    <div class="btn-row" style="margin-top:0">
+      <button class="btn btn-success btn-sm" onclick="saveEditGrp()">저장</button>
+      <button class="btn btn-ghost btn-sm"   onclick="cancelEditGrp()">취소</button>
+    </div>
+  </div></td></tr>`; }
+
+// ─────────────────────────────────────────────
+// 그룹 검색
+// ─────────────────────────────────────────────
+function searchGrps() {
+  if (!groups.length) { toast('저장된 그룹이 없습니다'); return; }
+  let total = 0;
+  document.querySelectorAll('#grpTbody tr:not(.edit-row)').forEach(tr => {
+    const moC = tr.querySelector('.gmo'), pcC = tr.querySelector('.gpc');
+    if (!moC) return;
+    const grp = groups[+moC.dataset.i]; if (!grp) return;
+    if (moC.checked || pcC.checked) {
+      grp.keywords.forEach(kw => { upsert({ keyword: kw, showMo: moC.checked, showPc: pcC.checked }); total++; });
+    }
+  });
+  render(); toast(total ? `${total}개 키워드 추가됨` : '선택된 그룹 없음');
+}
+
+// ─────────────────────────────────────────────
+// 직접 입력
+// ─────────────────────────────────────────────
+function searchInput() {
+  const raw = document.getElementById('kwInput').value.trim();
+  if (!raw) { toast('키워드를 입력해주세요'); return; }
+  const kws = raw.split(',').map(s => s.trim()).filter(Boolean);
+  kws.forEach(kw => upsert({ keyword: kw, showMo: true, showPc: true }));
+  render(); toast(`${kws.length}개 키워드 추가`);
+}
+
+function saveKws() {
+  const raw = document.getElementById('kwInput').value.trim();
+  if (!raw) { toast('저장할 키워드를 입력해주세요'); return; }
+  const kws = raw.split(',').map(s => s.trim()).filter(Boolean);
+  let n = 0;
+  kws.forEach(kw => { if (!saved.includes(kw)) { saved.push(kw); n++; } });
+  saveLS(); renderSaved(); toast(n ? `${n}개 저장됨` : '이미 저장된 키워드입니다');
+}
+
+// ─────────────────────────────────────────────
+// 저장 키워드 (서버 API 우선, file:// 시 localStorage 폴백)
+// ─────────────────────────────────────────────
+const USE_API = location.protocol !== 'file:';
+
+async function loadLS() {
+  if (USE_API) {
+    try {
+      const r = await fetch('/api/data');
+      if (r.ok) {
+        const d = await r.json();
+        saved  = Array.isArray(d.saved)  ? d.saved  : [];
+        groups = Array.isArray(d.groups) ? d.groups : [];
+      } else throw new Error('서버 응답 오류');
+    } catch (e) {
+      console.warn('API 로드 실패, localStorage 폴백:', e.message);
+      try { saved  = JSON.parse(localStorage.getItem('bdash_kw')  || '[]'); } catch { saved  = []; }
+      try { groups = JSON.parse(localStorage.getItem('bdash_grp') || '[]'); } catch { groups = []; }
+    }
+  } else {
+    try { saved  = JSON.parse(localStorage.getItem('bdash_kw')  || '[]'); } catch { saved  = []; }
+    try { groups = JSON.parse(localStorage.getItem('bdash_grp') || '[]'); } catch { groups = []; }
+  }
+  renderSaved(); renderGrpTable();
+}
+
+function saveLS() {
+  if (USE_API) {
+    fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saved, groups })
+    }).catch(e => console.warn('API 저장 실패:', e.message));
+  } else {
+    localStorage.setItem('bdash_kw',  JSON.stringify(saved));
+    localStorage.setItem('bdash_grp', JSON.stringify(groups));
+  }
+}
+function renderSaved() {
+  const el = document.getElementById('savedList');
+  if (!saved.length) { el.innerHTML = '<span class="empty-saved">저장된 키워드가 없습니다</span>'; return; }
+  el.innerHTML = saved.map((kw, i) => `
+    <span class="kw-chip" onclick="addOne('${escJ(kw)}')" title="클릭: 검색 추가">
+      ${esc(kw)}<button class="chip-x" onclick="event.stopPropagation();delSaved(${i})">×</button>
+    </span>`).join('');
+}
+function delSaved(i)  { const k = saved[i]; saved.splice(i,1); saveLS(); renderSaved(); toast(`"${k}" 삭제`); }
+function clearSaved() {
+  if (!saved.length) { toast('저장된 키워드가 없습니다'); return; }
+  if (!confirm(`저장된 키워드 ${saved.length}개를 삭제하시겠습니까?`)) return;
+  saved = []; saveLS(); renderSaved(); toast('저장 목록 초기화');
+}
+function searchAllSaved() {
+  if (!saved.length) { toast('저장된 키워드가 없습니다'); return; }
+  saved.forEach(kw => upsert({ keyword: kw, showMo: true, showPc: true }));
+  render(); toast(`${saved.length}개 키워드 추가`);
+}
+function addOne(kw) { upsert({ keyword: kw, showMo: true, showPc: true }); render(); toast(`"${kw}" 추가`); }
+
+// ─────────────────────────────────────────────
+// 검색 상태
+// ─────────────────────────────────────────────
+function upsert({ keyword, showMo, showPc }) {
+  const ex = active.find(s => s.keyword === keyword);
+  if (ex) { ex.showMo = showMo; ex.showPc = showPc; }
+  else active.push({ keyword, showMo, showPc });
+}
+function remove(kw) { active = active.filter(s => s.keyword !== kw); render(); }
+function clearAll() {
+  if (!active.length) { toast('표시 중인 키워드 없음'); return; }
+  active = []; render(); toast('전체 닫힘');
+}
+
+// ─────────────────────────────────────────────
+// 렌더링
+// ─────────────────────────────────────────────
+function render() {
+  const grid  = document.getElementById('grid');
+  const empty = document.getElementById('emptyState');
+  const bar   = document.getElementById('cBar');
+  document.getElementById('cCount').textContent = active.length;
+
+  if (!active.length) {
+    grid.style.display = 'none'; empty.style.display = 'flex'; bar.classList.remove('on'); return;
+  }
+  grid.style.display = ''; empty.style.display = 'none'; bar.classList.add('on');
+  grid.innerHTML = active.map(buildCard).join('');
+  grid.querySelectorAll('[data-rm]').forEach(btn => {
+    btn.addEventListener('click', () => remove(btn.dataset.rm));
+  });
+  requestAnimationFrame(() => { scaleFrames(); initLazyLoad(); });
+}
+
+// ─────────────────────────────────────────────
+// 카드 HTML (iframe 미리보기)
+// ─────────────────────────────────────────────
+function buildCard({ keyword, showMo, showPc }) {
+  const moNav = MO_URL + encodeURIComponent(keyword);
+  const pcNav = PC_URL + encodeURIComponent(keyword);
+  const moSrc = proxyUrl(moNav);
+  const pcSrc = proxyUrl(pcNav);
+  const uid   = 'f' + Math.random().toString(36).slice(2, 8);
+  const safeKw = escA(keyword);
+
+  let moHtml = '', pcHtml = '';
+
+  if (showMo) {
+    moHtml = `
+      <div class="frame-col" id="${uid}mo_col">
+        <div class="frame-lbl mo">📱 MO
+          <button class="frame-lbl-x" onclick="closeFrame('${uid}mo_col','${uid}frames')" title="MO 닫기">✕</button>
+        </div>
+        <div class="frame-wrap" data-type="mo" data-lazy-src="${escA(moSrc)}">
+          <div class="frame-overlay" id="${uid}mo_ov">
+            <div class="spinner"></div><span>로딩 대기…</span>
+          </div>
+          <iframe data-src="${escA(moSrc)}" id="${uid}mo_fr"
+            onload="hideOv('${uid}mo_ov')"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox">
+          </iframe>
+        </div>
+        <div class="frame-foot">
+          <a href="${moNav}" target="_blank" rel="noopener">↗ 새 탭</a>
+          <button onclick="reloadFrame('${uid}mo_fr','${escJ(moSrc)}')">🔄 새로고침</button>
+        </div>
+      </div>`;
+  }
+
+  if (showPc) {
+    pcHtml = `
+      <div class="frame-col" id="${uid}pc_col">
+        <div class="frame-lbl pc">🖥️ PC
+          <button class="frame-lbl-x" onclick="closeFrame('${uid}pc_col','${uid}frames')" title="PC 닫기">✕</button>
+        </div>
+        <div class="frame-wrap" data-type="pc" data-lazy-src="${escA(pcSrc)}">
+          <div class="frame-overlay" id="${uid}pc_ov">
+            <div class="spinner"></div><span>로딩 대기…</span>
+          </div>
+          <iframe data-src="${escA(pcSrc)}" id="${uid}pc_fr"
+            onload="hideOv('${uid}pc_ov')"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox">
+          </iframe>
+        </div>
+        <div class="frame-foot">
+          <a href="${pcNav}" target="_blank" rel="noopener">↗ 새 탭</a>
+          <button onclick="reloadFrame('${uid}pc_fr','${escJ(pcSrc)}')">🔄 새로고침</button>
+        </div>
+      </div>`;
+  }
+
+  const cls = (showMo && showPc) ? 'both' : 'one';
+  return `
+    <div class="kw-card">
+      <div class="card-header">
+        <span class="card-kw">🔍 ${esc(keyword)}</span>
+        <div class="card-actions">
+          <button class="card-close" data-rm="${safeKw}" title="카드 닫기">✕</button>
+        </div>
+      </div>
+      <div class="frames ${cls}" id="${uid}frames">${moHtml}${pcHtml}</div>
+    </div>`;
+}
+
+function hideOv(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+}
+
+// MO 또는 PC 개별 닫기
+function closeFrame(colId, framesId) {
+  const col    = document.getElementById(colId);
+  const frames = document.getElementById(framesId);
+  if (!col || !frames) return;
+  col.remove();
+  // 남은 frame-col 수에 따라 클래스 갱신
+  const remaining = frames.querySelectorAll('.frame-col').length;
+  if (remaining === 0) {
+    // 둘 다 닫으면 카드 전체 제거
+    frames.closest('.kw-card').remove();
+    scaleFrames();
+  } else {
+    frames.className = 'frames one';
+    scaleFrames();
+  }
+}
+
+function reloadFrame(frameId, src) {
+  const fr = document.getElementById(frameId);
+  if (!fr) return;
+  const ovId = frameId.replace('_fr', '_ov');
+  const ov = document.getElementById(ovId);
+  if (ov) ov.classList.remove('hidden');
+  const base = src.split('&_t=')[0].split('?_t=')[0];
+  fr.src = base + (base.includes('?') ? '&' : '?') + '_t=' + Date.now();
+}
+
+
+
+// ─────────────────────────────────────────────
+// 열 수 토글
+// ─────────────────────────────────────────────
+function setCols(n) {
+  cols = n;
+  FRAME_H = FRAME_H_MAP[n] || 120;
+  document.getElementById('grid').className = `results-grid c${n}`;
+  document.querySelectorAll('.col-btn').forEach(b => b.classList.toggle('active', +b.dataset.c === n));
+  // 레이아웃 재계산 후 스케일 적용
+  requestAnimationFrame(() => requestAnimationFrame(scaleFrames));
+}
+
+// ─────────────────────────────────────────────
+// 토스트
+// ─────────────────────────────────────────────
+let _tt;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(_tt); _tt = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ─────────────────────────────────────────────
+// 이스케이프
+// ─────────────────────────────────────────────
+function esc(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escA(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
+function escJ(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+// ─────────────────────────────────────────────
+// 시작
+// ─────────────────────────────────────────────
+checkServer();
+setInterval(checkServer, 10000);
+loadLS().catch(() => {});
+</script>
+</body>
+</html>

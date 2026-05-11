@@ -1,0 +1,12 @@
+{
+  "name": "brand-search-dashboard",
+  "version": "2.0.0",
+  "description": "네이버 브랜드 검색 대시보드",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
