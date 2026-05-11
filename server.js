@@ -18,16 +18,37 @@ const HOST = process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1');
 const UA   = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
              '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-// ── 데이터 영속성 (공유 저장소) ──
+// ── 데이터 영속성 (JSONBin.io 우선 → 로컬 파일 폴백) ──
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
+const JBIN_KEY  = process.env.JSONBIN_KEY || '';
+const JBIN_ID   = process.env.JSONBIN_ID  || '';
 
-function readData() {
+async function readData() {
+  if (JBIN_KEY && JBIN_ID) {
+    try {
+      const r = await fetch(`https://api.jsonbin.io/v3/b/${JBIN_ID}/latest`,
+        { headers: { 'X-Master-Key': JBIN_KEY } });
+      const j = await r.json();
+      return j.record || { groups: [], saved: [] };
+    } catch (e) { console.error('JSONBin 읽기 실패:', e.message); }
+  }
   try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
   catch { return { groups: [], saved: [] }; }
 }
-function writeData(data) {
+
+async function writeData(data) {
+  if (JBIN_KEY && JBIN_ID) {
+    try {
+      await fetch(`https://api.jsonbin.io/v3/b/${JBIN_ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': JBIN_KEY },
+        body: JSON.stringify(data)
+      });
+      return;
+    } catch (e) { console.error('JSONBin 저장 실패:', e.message); }
+  }
   try { fs.writeFileSync(DATA_FILE, JSON.stringify(data), 'utf8'); }
-  catch (e) { console.error('데이터 저장 실패:', e.message); }
+  catch (e) { console.error('파일 저장 실패:', e.message); }
 }
 
 // ── 압축 해제 ──
@@ -155,9 +176,10 @@ const server = http.createServer((req, res) => {
 
   // GET /api/data — 공유 데이터 로드
   if (req.url === '/api/data' && req.method === 'GET') {
-    const data = readData();
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.end(JSON.stringify(data));
+    readData().then(data => {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(data));
+    }).catch(() => { res.writeHead(500); res.end('Read error'); });
     return;
   }
 
@@ -169,9 +191,10 @@ const server = http.createServer((req, res) => {
       try {
         const data = JSON.parse(body);
         if (!Array.isArray(data.groups) || !Array.isArray(data.saved)) throw new Error('invalid');
-        writeData(data);
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ ok: true }));
+        writeData(data).then(() => {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ ok: true }));
+        }).catch(() => { res.writeHead(500); res.end('Save error'); });
       } catch (e) {
         res.writeHead(400); res.end('Invalid data');
       }
