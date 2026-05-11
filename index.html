@@ -648,12 +648,12 @@ async function checkServer() {
   }
 
   try {
-    const r = await fetch(location.origin + '/proxy?url=', { signal: AbortSignal.timeout(2500) });
+    const r = await fetch(location.origin + '/proxy?url=', { signal: AbortSignal.timeout(4000) });
     // 400(파라미터 없음)이 와도 서버가 살아있다는 뜻
     if (r.status < 500) {
       serverOk = true;
       dot.className = 'status-dot ok';
-      txt.textContent = '서버 실행 중';
+      txt.textContent = '프록시 작동 중';
       banner.classList.remove('show');
       return true;
     }
@@ -1199,10 +1199,17 @@ function escJ(s) { return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 // ─────────────────────────────────────────────
 // 시작
 // ─────────────────────────────────────────────
-checkServer();
-setInterval(checkServer, 10000);
-updateSyncUI();
-loadLS().catch(() => {});
+(async () => {
+  await checkServer();
+  updateSyncUI();
+  await loadLS().catch(() => {});
+  if (active.length) render();
+})();
+setInterval(async () => {
+  const prev = serverOk;
+  await checkServer();
+  if (prev !== serverOk && active.length) render();
+}, 15000);
 </script>
 </body>
 </html>
